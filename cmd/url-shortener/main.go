@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,7 +11,12 @@ import (
 
 	"github.com/YLysov0017/go_pet_n1/internal/config"
 	"github.com/YLysov0017/go_pet_n1/internal/config/storage/sqlite"
+	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger"
+	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger/handlers/url/save"
+	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/handlers/slogpretty"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/sl"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -35,30 +41,36 @@ func main() {
 	}
 
 	fmt.Println(cfg)
+	router := chi.NewRouter()
+
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	router.Use(mwlogger.New(log))
+	router.Use(middleware.URLFormat)
+	router.Use(middleware.Recoverer)
 
 	storage, err := sqlite.New(storPath)
+
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
+	router.Post("/url", save.New(log, storage, cfg.AliasLength))
 
-	id, err := storage.SaveURL("https://google.com", "google")
-	if err != nil {
-		log.Error("failed to save url", sl.Err(err))
-		os.Exit(1)
+	log.Info("starting server on ", slog.String("address", cfg.Address))
+
+	srv := &http.Server{
+		Addr:         cfg.Address,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 
-	log.Info("saved url", slog.Int64("id", id))
-
-	err = storage.DeleteURL("google")
-	if err != nil {
-		log.Error("failed to delete url", sl.Err(err))
-		os.Exit(1)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("failed  to start server")
 	}
-
-	// TODO: init router: chi, chi render
-
-	// TODO: run server
+	log.Error("server stopped")
 }
 
 const (
@@ -71,7 +83,7 @@ func setupLogger(env string) *slog.Logger { // берем настройки и�
 	var log *slog.Logger
 	switch env {
 	case envLocal:
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		log = setupPrettySlog()
 	case envDev:
 		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	case envProd:
@@ -80,4 +92,16 @@ func setupLogger(env string) *slog.Logger { // берем настройки и�
 
 	return log
 
+}
+
+func setupPrettySlog() *slog.Logger {
+	opts := slogpretty.PrettyHandlerOptions{
+		SlogOpts: &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		},
+	}
+
+	handler := opts.NewPrettyHandler(os.Stdout)
+
+	return slog.New(handler)
 }

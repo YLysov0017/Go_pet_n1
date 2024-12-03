@@ -25,7 +25,7 @@ func New(storagePath string) (*Storage, error) {
 	CREATE TABLE IF NOT EXISTS url(
 		ID INTEGER PRIMARY KEY,
 		alias TEXT NOT NULL UNIQUE,
-		url TEXT NOT NULL);
+		url TEXT NOT NULL UNIQUE);
 	CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);
 	`)
 
@@ -43,8 +43,18 @@ func New(storagePath string) (*Storage, error) {
 
 func (s *Storage) SaveURL(urlToSave, alias string) (int64, error) {
 	const op = "storage.sqlite.SaveURL"
+	stmt, err := s.db.Prepare(`SELECT COUNT(*) FROM url WHERE alias = ?`)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	var resURL int
 
-	stmt, err := s.db.Prepare(`INSERT INTO url(url, alias) VALUES(?, ?)`)
+	_ = stmt.QueryRow(alias).Scan(&resURL)
+	if resURL != 0 {
+		return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
+	}
+
+	stmt, err = s.db.Prepare(`INSERT INTO url(url, alias) VALUES(?, ?)`)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -61,6 +71,7 @@ func (s *Storage) SaveURL(urlToSave, alias string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%s: failed to get last insert id: %w", op, err)
 	}
+
 	return id, nil
 }
 
