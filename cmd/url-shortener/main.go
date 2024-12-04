@@ -11,8 +11,8 @@ import (
 
 	"github.com/YLysov0017/go_pet_n1/internal/config"
 	"github.com/YLysov0017/go_pet_n1/internal/config/storage/sqlite"
+	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/save"
 	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger"
-	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger/handlers/url/save"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/handlers/slogpretty"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/sl"
 	"github.com/go-chi/chi/v5"
