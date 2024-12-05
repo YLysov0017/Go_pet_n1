@@ -11,7 +11,9 @@ import (
 
 	"github.com/YLysov0017/go_pet_n1/internal/config"
 	"github.com/YLysov0017/go_pet_n1/internal/config/storage/sqlite"
+	deleter "github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/delete"
 	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/save"
+	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/save/redirect"
 	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/handlers/slogpretty"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/sl"
@@ -24,7 +26,9 @@ func main() {
 
 	log := setupLogger(cfg.Env)
 
-	log.Info("service started", slog.String("Env", cfg.Env))
+	log.Info("service started",
+		slog.String("Env", cfg.Env),
+	)
 	log.Debug("debug enabled")
 
 	var storPath string
@@ -56,6 +60,8 @@ func main() {
 		os.Exit(1)
 	}
 	router.Post("/url", save.New(log, storage, cfg.AliasLength))
+	router.Get("/{alias}", redirect.New(log, storage))
+	router.Delete("/{alias}", deleter.New(log, storage))
 
 	log.Info("starting server on ", slog.String("address", cfg.Address))
 
