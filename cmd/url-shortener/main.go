@@ -12,8 +12,8 @@ import (
 	"github.com/YLysov0017/go_pet_n1/internal/config"
 	"github.com/YLysov0017/go_pet_n1/internal/config/storage/sqlite"
 	deleter "github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/delete"
+	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/redirect"
 	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/save"
-	"github.com/YLysov0017/go_pet_n1/internal/http-server/handlers/url/save/redirect"
 	"github.com/YLysov0017/go_pet_n1/internal/http-server/middleware/mwlogger"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/handlers/slogpretty"
 	"github.com/YLysov0017/go_pet_n1/internal/lib/logger/sl"
@@ -59,10 +59,14 @@ func main() {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-	router.Post("/url", save.New(log, storage, cfg.AliasLength))
 	router.Get("/{alias}", redirect.New(log, storage))
-	router.Delete("/{alias}", deleter.New(log, storage))
-
+	router.Route("/url", func(r chi.Router) {
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
+		r.Delete("/{alias}", deleter.New(log, storage))
+		r.Post("/", save.New(log, storage, cfg.AliasLength))
+	})
 	log.Info("starting server on ", slog.String("address", cfg.Address))
 
 	srv := &http.Server{

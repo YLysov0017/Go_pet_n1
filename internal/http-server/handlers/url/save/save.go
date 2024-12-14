@@ -63,7 +63,7 @@ func New(log *slog.Logger, urlSaver URLSaver, aliasLength int) http.HandlerFunc 
 
 		alias := req.Alias
 		if alias == "" {
-			alias = random.NewRanomdString(aliasLength)
+			alias = random.NewRandomString(aliasLength)
 		}
 
 		id, err := urlSaver.SaveURL(req.URL, alias)
